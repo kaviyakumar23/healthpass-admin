@@ -9,22 +9,30 @@ const useStore = create(
       (set) => ({
         // Initial state
         user: null,
-        isAuthenticated: false,
+        isAuthenticated: localStorage.getItem("isAuthenticated") === "true",
         login: (credentials) => {
-          // Simulate authentication
-          if (
-            credentials.username === "admin" &&
-            credentials.password === "password"
-          ) {
+          // You should replace these with your actual admin credentials
+          // In a real application, these would typically come from an API/backend
+          const ADMIN_USERNAME = "admin";
+          const ADMIN_PASSWORD = "password";
+
+          const success =
+            credentials.username === ADMIN_USERNAME &&
+            credentials.password === ADMIN_PASSWORD;
+
+          if (success) {
+            localStorage.setItem("isAuthenticated", "true");
             set({
               isAuthenticated: true,
               user: { username: credentials.username },
             });
-            return true;
           }
-          return false;
+          return success;
         },
-        logout: () => set({ isAuthenticated: false, user: null }),
+        logout: () => {
+          localStorage.removeItem("isAuthenticated");
+          set({ isAuthenticated: false, user: null });
+        },
       }),
       {
         name: "app-storage", // unique name for localStorage
