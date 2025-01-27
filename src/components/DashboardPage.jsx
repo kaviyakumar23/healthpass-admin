@@ -16,16 +16,25 @@ export function DashboardPage() {
     if (data) {
       setScanning(false);
       setIsLoading(true);
-
       try {
-        // Assuming the QR code contains a URL
-        const url = data.text;
-        const response = await fetch(url, {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        });
+        // Extract envelopeId from URL query parameters
+        const qrUrl = new URL(data[0].rawValue);
+        const envelopeId = qrUrl.searchParams.get("envelopeId");
+
+        if (!envelopeId) {
+          throw new Error("Invalid QR code: Missing envelopeId");
+        }
+
+        // Make request to backend endpoint
+        const response = await fetch(
+          `${import.meta.env.VITE_BACKEND_URL}/envelopes/${envelopeId}/status`,
+          {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+            },
+          }
+        );
 
         if (!response.ok) {
           throw new Error("Failed to fetch document status");
@@ -104,30 +113,40 @@ export function DashboardPage() {
                   <>
                     {scanResult?.status === "approved" ? (
                       <Alert className="border-green-500 bg-green-50">
-                        <CheckCircle2 className="h-5 w-5 text-green-500" />
-                        <AlertTitle className="text-green-500">
-                          Documents Verified
-                        </AlertTitle>
-                        <div className="mt-2 space-y-2">
-                          <p>
-                            All travel documents have been verified. Traveler is
-                            cleared for entry.
-                          </p>
-                          <div className="text-sm">
-                            <p>
-                              <strong>Traveler:</strong>{" "}
-                              {scanResult.travelerName}
+                        <div className="flex flex-col items-center space-y-4 w-full">
+                          <CheckCircle2 className="h-16 w-16 text-green-500" />
+                          <AlertTitle className="text-green-500 text-xl font-semibold">
+                            Documents Verified
+                          </AlertTitle>
+                          <div className="text-center space-y-3 w-full">
+                            <p className="text-green-700">
+                              All travel documents have been verified. Traveler
+                              is cleared for entry.
                             </p>
-                            <p>
-                              <strong>Document ID:</strong>{" "}
-                              {scanResult.documentId}
-                            </p>
-                            <p>
-                              <strong>Expires:</strong>{" "}
-                              {new Date(
-                                scanResult.expiryDate
-                              ).toLocaleDateString()}
-                            </p>
+                            <div className="bg-white rounded-lg p-4 shadow-sm max-w-md mx-auto">
+                              <dl className="space-y-2">
+                                <div className="flex justify-between items-center">
+                                  <dt className="text-gray-500">Traveler</dt>
+                                  <dd className="font-medium">
+                                    {scanResult.travelerName}
+                                  </dd>
+                                </div>
+                                <div className="flex justify-between items-center">
+                                  <dt className="text-gray-500">Document ID</dt>
+                                  <dd className="font-medium">
+                                    {scanResult.documentId}
+                                  </dd>
+                                </div>
+                                <div className="flex justify-between items-center">
+                                  <dt className="text-gray-500">Expires</dt>
+                                  <dd className="font-medium">
+                                    {new Date(
+                                      scanResult.expiryDate
+                                    ).toLocaleDateString()}
+                                  </dd>
+                                </div>
+                              </dl>
+                            </div>
                           </div>
                         </div>
                       </Alert>
