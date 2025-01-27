@@ -9,18 +9,49 @@ import { CheckCircle2, XCircle } from "lucide-react";
 export function DashboardPage() {
   const [scanning, setScanning] = useState(true);
   const [scanResult, setScanResult] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
   const logout = useStore((state) => state.logout);
 
-  const handleScan = (data) => {
+  const handleScan = async (data) => {
     if (data) {
       setScanning(false);
-      // Simulate document verification
-      // In real implementation, this would validate the QR data against a backend
+      setIsLoading(true);
+
       try {
-        const documentData = JSON.parse(data.text);
-        setScanResult(documentData);
+        // Assuming the QR code contains a URL
+        const url = data.text;
+        const response = await fetch(url, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch document status");
+        }
+
+        const documentData = await response.json();
+
+        // Process the response data
+        setScanResult({
+          status: documentData.status === "completed" ? "approved" : "invalid",
+          documentId: documentData.envelopeId,
+          expiryDate: documentData.expireDateTime,
+          travelerName: documentData.sender.userName,
+          message:
+            documentData.status === "completed"
+              ? "Document verified successfully"
+              : "Document verification failed",
+        });
       } catch (error) {
-        setScanResult({ status: "invalid", message: "Invalid QR Code" });
+        console.error("Error:", error);
+        setScanResult({
+          status: "invalid",
+          message: "Failed to verify document. Please try again.",
+        });
+      } finally {
+        setIsLoading(false);
       }
     }
   };
@@ -52,7 +83,7 @@ export function DashboardPage() {
             {scanning ? (
               <div className="space-y-4">
                 <Scanner
-                  onScan={(result) => console.log(result)}
+                  onScan={(result) => handleScan(result)}
                   onError={handleError}
                   scanDelay={300}
                   styles={{ width: "100%" }}
@@ -63,32 +94,60 @@ export function DashboardPage() {
               </div>
             ) : (
               <div className="space-y-4">
-                {scanResult?.status === "approved" ? (
-                  <Alert className="border-green-500 bg-green-50">
-                    <CheckCircle2 className="h-5 w-5 text-green-500" />
-                    <AlertTitle className="text-green-500">
-                      Documents Verified
-                    </AlertTitle>
-                    <p className="mt-2">
-                      All travel documents have been verified. Traveler is
-                      cleared for entry.
+                {isLoading ? (
+                  <div className="text-center py-8">
+                    <p className="text-muted-foreground">
+                      Verifying document...
                     </p>
-                  </Alert>
+                  </div>
                 ) : (
-                  <Alert className="border-red-500 bg-red-50">
-                    <XCircle className="h-5 w-5 text-red-500" />
-                    <AlertTitle className="text-red-500">
-                      Verification Failed
-                    </AlertTitle>
-                    <p className="mt-2">
-                      {scanResult?.message ||
-                        "Documents could not be verified."}
-                    </p>
-                  </Alert>
+                  <>
+                    {scanResult?.status === "approved" ? (
+                      <Alert className="border-green-500 bg-green-50">
+                        <CheckCircle2 className="h-5 w-5 text-green-500" />
+                        <AlertTitle className="text-green-500">
+                          Documents Verified
+                        </AlertTitle>
+                        <div className="mt-2 space-y-2">
+                          <p>
+                            All travel documents have been verified. Traveler is
+                            cleared for entry.
+                          </p>
+                          <div className="text-sm">
+                            <p>
+                              <strong>Traveler:</strong>{" "}
+                              {scanResult.travelerName}
+                            </p>
+                            <p>
+                              <strong>Document ID:</strong>{" "}
+                              {scanResult.documentId}
+                            </p>
+                            <p>
+                              <strong>Expires:</strong>{" "}
+                              {new Date(
+                                scanResult.expiryDate
+                              ).toLocaleDateString()}
+                            </p>
+                          </div>
+                        </div>
+                      </Alert>
+                    ) : (
+                      <Alert className="border-red-500 bg-red-50">
+                        <XCircle className="h-5 w-5 text-red-500" />
+                        <AlertTitle className="text-red-500">
+                          Verification Failed
+                        </AlertTitle>
+                        <p className="mt-2">
+                          {scanResult?.message ||
+                            "Documents could not be verified."}
+                        </p>
+                      </Alert>
+                    )}
+                    <Button onClick={handleNewScan} className="w-full">
+                      Scan New Document
+                    </Button>
+                  </>
                 )}
-                <Button onClick={handleNewScan} className="w-full">
-                  Scan New Document
-                </Button>
               </div>
             )}
           </CardContent>
